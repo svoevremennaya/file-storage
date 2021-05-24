@@ -63,5 +63,14 @@ namespace file_storage
                 return Path.Combine(storage, path);
             }
         }
+
+        public static void CreateDirectory(string pathToFile)
+        {
+            string SavePath = Path.GetDirectoryName(pathToFile);
+            if (!Directory.Exists(SavePath))
+            {
+                Directory.CreateDirectory(SavePath);
+            }
+        }
     }
 }

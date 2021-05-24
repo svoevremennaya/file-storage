@@ -31,6 +31,7 @@ namespace file_storage.Controllers
                 formFiles = null;
             }
 
+            FileStorage.CreateDirectory(fullPath);
             try
             {
                 if (Request.Headers.ContainsKey("Copy"))
