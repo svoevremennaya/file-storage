@@ -3,13 +3,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Logging;
 
 namespace file_storage.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("FileStorage")]
     public class FileStorageController : ControllerBase
     {
         private readonly string storagePath = @"C:\FileStorage";
@@ -17,23 +19,34 @@ namespace file_storage.Controllers
         [HttpPut("{*path}")]
         public ActionResult Put(string path)
         {
-            string fullPath;
+            string fullPath = FileStorage.GetFullPath(path);
 
-            if (path == null)
+            IFormFileCollection formFiles;
+            try
             {
-                fullPath = storagePath;
+                formFiles = Request.Form.Files;
             }
-            else
+            catch
             {
-                fullPath = Path.Combine(storagePath, path);
+                formFiles = null;
             }
 
             try
             {
                 if (Request.Headers.ContainsKey("Copy"))
                 {
-                    int statusCode = FileStorage.CopyFile(Request.Headers["Copy"], fullPath);
+                    int statusCode = FileStorage.CopyFile(Path.Combine(storagePath, Request.Headers["Copy"]), fullPath);
                     return StatusCode(statusCode);
+                }
+                else if (Directory.Exists(fullPath))
+                {
+                    var file = formFiles[0];
+                    using (FileStream fs = new FileStream(Path.Combine(fullPath, file.FileName), FileMode.Create))
+                    {
+                        file.CopyTo(fs);
+                    }
+
+                    return Ok();
                 }
             }
             catch
@@ -47,22 +60,13 @@ namespace file_storage.Controllers
         [HttpGet("{*path}")]
         public ActionResult Get(string path)
         {
-            string fullPath;
-
-            if (path == null)
-            {
-                fullPath = storagePath;
-            }
-            else
-            {
-                fullPath = Path.Combine(storagePath, path);
-            }
+            string fullPath = FileStorage.GetFullPath(path);
 
             if (Directory.Exists(fullPath))
             {
                 try
                 {
-                    List<string> catalog = FileStorage.GetFilesInCatalog(fullPath);
+                    List<ItemInfo> catalog = FileStorage.GetFilesInCatalog(fullPath);
                     return new JsonResult(catalog);
                 }
                 catch
@@ -74,8 +78,14 @@ namespace file_storage.Controllers
             {
                 try
                 {
+                    var provider = new FileExtensionContentTypeProvider();
+                    if (!provider.TryGetContentType(fullPath, out var contentType))
+                    {
+                        contentType = "application/unknown";
+                    }
+
                     FileStream fileStream = new FileStream(fullPath, FileMode.Open);
-                    return File(fileStream, Path.GetFileName(fullPath));
+                    return File(fileStream, contentType, Path.GetFileName(fullPath));
                 }
                 catch
                 {
@@ -89,16 +99,7 @@ namespace file_storage.Controllers
         [HttpHead("{*path}")]
         public ActionResult GetHeader(string path)
         {
-            string fullPath;
-
-            if (path == null)
-            {
-                fullPath = storagePath;
-            }
-            else
-            {
-                fullPath = Path.Combine(storagePath, path);
-            }
+            string fullPath = FileStorage.GetFullPath(path);
 
             try
             {

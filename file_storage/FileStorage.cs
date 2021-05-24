@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,15 +9,21 @@ namespace file_storage
     {
         public static string storage = @"C:\FileStorage";
 
-        public static List<string> GetFilesInCatalog(string path)
+        public static List<ItemInfo> GetFilesInCatalog(string path)
         {
-            List<string> catalog = new List<string>();
+            List<ItemInfo> catalog = new List<ItemInfo>();
+            string[] directories = Directory.GetDirectories(path);
             string[] files = Directory.GetFiles(path);
 
-            foreach (string file in files)
+            foreach (string item in directories)
             {
-                FileInfo fileInfo = new FileInfo(file);
-                catalog.Add(fileInfo.Name);
+                DirectoryInfo directoryInfo = new DirectoryInfo(item);
+                catalog.Add(new ItemInfo("Directory", directoryInfo.Name));
+            }
+            foreach (string item in files)
+            {
+                FileInfo fileInfo = new FileInfo(item);
+                catalog.Add(new ItemInfo("File", fileInfo.Name));
             }
 
             return catalog;
@@ -43,6 +50,18 @@ namespace file_storage
             }
 
             return 200;
+        }
+
+        public static string GetFullPath(string path)
+        {
+            if (path == null)
+            {
+                return storage;
+            }
+            else
+            {
+                return Path.Combine(storage, path);
+            }
         }
     }
 }
